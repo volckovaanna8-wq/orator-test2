@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎤 Насколько ты оратор?</title>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <!-- QR -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;600;700&family=Nunito:wght@300;400;600;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --accent: #7c6ff7; --accent-light: #a78bfa; --gold: #fbbf24;
+            --green: #34d399; --pink: #f472b6; --blue: #60a5fa;
+        }
+        body {
+            font-family: 'Nunito', sans-serif; min-height: 100vh; overflow-x: hidden;
+            background: linear-gradient(180deg, #0f0c29 0%, #302b63 40%, #24243e 100%);
+            color: #fff;
+        }
+
+        /* ===== STARS ===== */
+        .stars-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+        .star {
+            position: absolute; width: 3px; height: 3px; background: #fff; border-radius: 50%;
+            animation: twinkle var(--dur) ease-in-out infinite;
+        }
+        @keyframes twinkle { 0%,100%{opacity:.2;transform:scale(1)} 50%{opacity:1;transform:scale(1.5)} }
+
+        /* ===== CLOUDS ===== */
+        .cloud { position: fixed; background: rgba(255,255,255,0.06); border-radius: 50%; filter: blur(40px); pointer-events: none; z-index: 0; }
+        .cloud-1 { width:500px;height:200px;top:5%;left:-5%;animation:floatCloud 25s ease-in-out infinite; }
+        .cloud-2 { width:400px;height:160px;top:30%;right:-10%;animation:floatCloud 30s ease-in-out infinite reverse; }
+        .cloud-3 { width:600px;height:250px;bottom:10%;left:10%;animation:floatCloud 35s ease-in-out infinite; }
+        .cloud-4 { width:350px;height:140px;top:60%;right:5%;animation:floatCloud 20s ease-in-out infinite reverse; }
+        @keyframes floatCloud {
+            0%,100%{transform:translateX(0) translateY(0)} 25%{transform:translateX(30px) translateY(-15px)}
+            50%{transform:translateX(-20px) translateY(10px)} 75%{transform:translateX(15px) translateY(-5px)}
+        }
+
+        /* ===== DECORATIVE CLOUDS ===== */
+        .deco-cloud { position: fixed; pointer-events: none; z-index: 0; opacity: 0.08; }
+        .deco-cloud svg { fill: white; }
+        .deco-cloud-1 { top:8%;right:8%;width:180px;animation:floatDeco 18s ease-in-out infinite; }
+        .deco-cloud-2 { bottom:15%;left:5%;width:140px;animation:floatDeco 22s ease-in-out infinite reverse; }
+        .deco-cloud-3 { top:45%;right:3%;width:100px;animation:floatDeco 15s ease-in-out infinite; }
+        @keyframes floatDeco { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-30px) rotate(3deg)} }
+
+        /* ===== MAIN ===== */
+        .main-container { position: relative; z-index: 10; max-width: 900px; margin: 0 auto; padding: 30px 20px 60px; }
+        .header {
+            text-align: center; margin-bottom: 40px; padding: 40px 30px;
+            background: linear-gradient(135deg, rgba(124,111,247,0.2), rgba(167,139,250,0.1));
+            border-radius: 30px; border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(20px); position: relative; overflow: hidden;
+        }
+        .header::before {
+            content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;
+            background:radial-gradient(circle,rgba(124,111,247,0.1) 0%,transparent 60%);
+            animation:headerGlow 8s ease-in-out infinite;
+        }
+        @keyframes headerGlow { 0%,100%{transform:translate(0,0)} 50%{transform:translate(5%,5%)} }
+        .header h1 {
+            font-family:'Comfortaa',cursive;font-size:2.8em;font-weight:700;
+            background:linear-gradient(135deg,#fff,#a78bfa,#fbbf24);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+            position:relative;margin-bottom:10px;
+        }
+        .header .subtitle { font-size:1.15em;color:rgba(255,255,255,0.7);position:relative; }
+        .header .emoji-row { font-size:2em;margin-top:15px;position:relative; }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
+            border-radius: 24px; border: 1px solid rgba(255,255,255,0.12);
+            backdrop-filter: blur(20px); padding: 35px; margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2); transition: transform .3s, box-shadow .3s;
+        }
+        .card:hover { transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,0.3); }
+        .card-title { font-family:'Comfortaa',cursive;font-size:1.5em;font-weight:600;margin-bottom:20px;display:flex;align-items:center;gap:12px; }
+        .card-title .icon { font-size:1.3em; }
+
+        /* ===== QR ===== */
+        .qr-section { text-align: center; }
+        .qr-wrapper { display:inline-block;padding:25px;background:white;border-radius:20px;box-shadow:0 0 40px rgba(124,111,247,0.3);margin:20px 0; }
+        #qrcode { display:flex;justify-content:center; }
+        #qrcode img, #qrcode canvas { border-radius: 8px; }
+        .qr-hint { color:rgba(255,255,255,0.6);font-size:.95em;margin-top:15px; }
+        .qr-hint strong { color: var(--gold); }
+
+        /* ===== TEST ===== */
+        .progress-bar-container { width:100%;height:8px;background:rgba(255,255,255,0.1);border-radius:10px;margin-bottom:30px;overflow:hidden; }
+        .progress-bar { height:100%;background:linear-gradient(90deg,var(--accent),var(--pink),var(--gold));border-radius:10px;transition:width .5s ease;width:0%; }
+        .question-counter { font-size:.9em;color:rgba(255,255,255,0.5);margin-bottom:8px; }
+        .question-text { font-family:'Comfortaa',cursive;font-size:1.3em;font-weight:600;margin-bottom:25px;line-height:1.5; }
+        .answers { display:flex;flex-direction:column;gap:12px; }
+        .answer-btn {
+            display:flex;align-items:center;gap:15px;padding:18px 22px;
+            background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.1);
+            border-radius:16px;color:#fff;font-family:'Nunito',sans-serif;font-size:1em;
+            cursor:pointer;transition:all .3s ease;text-align:left;
+        }
+        .answer-btn:hover { background:rgba(124,111,247,0.2);border-color:var(--accent-light);transform:translateX(8px); }
+        .answer-btn.selected { background:rgba(124,111,247,0.3);border-color:var(--accent);box-shadow:0 0 20px rgba(124,111,247,0.2); }
+        .answer-letter { display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,0.1);font-weight:700;font-size:.9em;flex-shrink:0; }
+        .answer-btn.selected .answer-letter { background: var(--accent); }
+        .nav-buttons { display:flex;justify-content:space-between;margin-top:30px;gap:15px; }
+        .btn { padding:14px 35px;border:none;border-radius:14px;font-family:'Nunito',sans-serif;font-size:1em;font-weight:600;cursor:pointer;transition:all .3s ease;display:flex;align-items:center;gap:8px; }
+        .btn-primary { background:linear-gradient(135deg,var(--accent),var(--accent-light));color:#fff;box-shadow:0 4px 15px rgba(124,111,247,0.4); }
+        .btn-primary:hover { transform:translateY(-2px);box-shadow:0 6px 25px rgba(124,111,247,0.5); }
+        .btn-secondary { background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2); }
+        .btn-secondary:hover { background:rgba(255,255,255,0.15); }
+        .btn-gold { background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#1a1a3e;box-shadow:0 4px 15px rgba(251,191,36,0.4); }
+        .btn-gold:hover { transform:translateY(-2px);box-shadow:0 6px 25px rgba(251,191,36,0.5); }
+        .btn:disabled { opacity:.4;cursor:not-allowed;transform:none!important; }
+
+        /* ===== RESULT ===== */
+        .result-container { text-align: center; }
+        .result-emoji { font-size:5em;margin-bottom:15px;animation:bounceIn .8s ease; }
+        @keyframes bounceIn { 0%{transform:scale(0);opacity:0} 50%{transform:scale(1.2)} 100%{transform:scale(1);opacity:1} }
+        .result-title { font-family:'Comfortaa',cursive;font-size:2em;font-weight:700;margin-bottom:10px; }
+        .result-score {
+            font-size:3.5em;font-weight:700;font-family:'Comfortaa',cursive;
+            background:linear-gradient(135deg,var(--gold),var(--pink));
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin:15px 0;
+        }
+        .result-description { font-size:1.1em;color:rgba(255,255,255,0.75);line-height:1.7;max-width:600px;margin:0 auto 25px; }
+        .result-bar { width:100%;max-width:400px;height:14px;background:rgba(255,255,255,0.1);border-radius:10px;margin:20px auto;overflow:hidden; }
+        .result-bar-fill { height:100%;border-radius:10px;transition:width 1.5s ease;background:linear-gradient(90deg,var(--accent),var(--pink),var(--gold)); }
+        .result-scale { display:flex;justify-content:space-between;max-width:400px;margin:8px auto 0;font-size:.8em;color:rgba(255,255,255,0.4); }
+
+        /* ===== GROUP RESULTS ===== */
+        .group-results { margin-top:10px; }
+        .group-stats { display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:30px; }
+        .stat-box { background:rgba(255,255,255,0.06);border-radius:16px;padding:20px 15px;text-align:center;border:1px solid rgba(255,255,255,0.08); }
+        .stat-value { font-family:'Comfortaa',cursive;font-size:2.2em;font-weight:700;background:linear-gradient(135deg,var(--blue),var(--accent-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
+        .stat-label { font-size:.85em;color:rgba(255,255,255,0.5);margin-top:5px; }
+        .chart-container { margin:25px 0; }
+        .chart-bar-row { display:flex;align-items:center;gap:15px;margin-bottom:14px; }
+        .chart-label { width:160px;text-align:right;font-size:.9em;color:rgba(255,255,255,0.7);flex-shrink:0; }
+        .chart-bar-bg { flex:1;height:30px;background:rgba(255,255,255,0.06);border-radius:8px;overflow:hidden;position:relative; }
+        .chart-bar-fill { height:100%;border-radius:8px;transition:width 1.5s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;font-size:.85em;font-weight:700;color:#fff;min-width:40px; }
+        .chart-bar-fill.level-1 { background:linear-gradient(90deg,#ef4444,#f87171); }
+        .chart-bar-fill.level-2 { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
+        .chart-bar-fill.level-3 { background:linear-gradient(90deg,#34d399,#6ee7b7); }
+        .chart-bar-fill.level-4 { background:linear-gradient(90deg,#60a5fa,#93c5fd); }
+        .chart-bar-fill.level-5 { background:linear-gradient(90deg,#a78bfa,#c4b5fd); }
+        .chart-count { width:50px;text-align:center;font-weight:700;color:rgba(255,255,255,0.6);flex-shrink:0; }
+        .distribution-visual { display:flex;justify-content:center;align-items:flex-end;gap:20px;height:200px;margin:30px 0;padding:0 20px; }
+        .dist-bar-wrapper { display:flex;flex-direction:column;align-items:center;gap:8px;flex:1;max-width:120px; }
+        .dist-bar { width:100%;border-radius:12px 12px 4px 4px;transition:height 1.5s ease;min-height:5px;position:relative;display:flex;align-items:flex-start;justify-content:center;padding-top:8px;font-weight:700;font-size:.9em; }
+        .dist-label { font-size:.8em;color:rgba(255,255,255,0.5);text-align:center; }
+        .dist-emoji { font-size:1.5em; }
+        .name-input { width:100%;max-width:400px;padding:16px 22px;background:rgba(255,255,255,0.08);border:2px solid rgba(255,255,255,0.15);border-radius:14px;color:#fff;font-family:'Nunito',sans-serif;font-size:1.1em;text-align:center;outline:none;transition:border-color .3s;margin-bottom:20px; }
+        .name-input::placeholder { color:rgba(255,255,255,0.3); }
+        .name-input:focus { border-color: var(--accent-light); }
+        .mode-switcher { position:fixed;top:15px;right:15px;z-index:1000;display:flex;gap:8px; }
+        .mode-btn { padding:8px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:rgba(255,255,255,0.6);font-size:.8em;cursor:pointer;backdrop-filter:blur(10px);transition:all .3s; }
+        .mode-btn.active { background:var(--accent);color:#fff;border-color:var(--accent); }
+        .fade-in { animation:fadeIn .5s ease forwards; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+        .slide-up { animation:slideUp .6s ease forwards; }
+        @keyframes slideUp { from{opacity:0;transform:translateY(40px)} to{opacity:1;transform:translateY(0)} }
+        .confetti-piece { position:fixed;pointer-events:none;z-index:9999;animation:confettiFall var(--fall-dur) linear forwards; }
+        @keyframes confettiFall { 0%{transform:translateY(-10px) rotate(0deg);opacity:1} 100%{transform:translateY(100vh) rotate(var(--rotation));opacity:0} }
+        .no-results { text-align:center;padding:40px;color:rgba(255,255,255,0.4); }
+        .no-results .icon { font-size:3em;margin-bottom:15px; }
+        @media(max-width:768px){.header h1{font-size:1.8em}.card{padding:22px}.question-text{font-size:1.1em}.result-score{font-size:2.5em}.chart-label{width:110px;font-size:.8em}.group-stats{grid-template-columns:repeat(2,1fr)}.mode-switcher{top:10px;right:10px}}
+        .pulse { animation:pulse 2s ease-in-out infinite; }
+        @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+        .refresh-btn { position:absolute;top:15px;right:15px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.6);padding:8px 16px;border-radius:10px;cursor:pointer;font-size:.85em;transition:all .3s; }
+        .refresh-btn:hover { background:rgba(255,255,255,0.15);color:#fff; }
+        .sync-badge { display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:.8em; }
+        .sync-badge.online { background:rgba(52,211,153,0.2);border:1px solid rgba(52,211,153,0.4);color:#34d399; }
+        .sync-badge.offline { background:rgba(251,191,36,0.2);border:1px solid rgba(251,191,36,0.4);color:#fbbf24; }
+        .sync-dot { width:8px;height:8px;border-radius:50%;animation:syncPulse 1.5s ease-in-out infinite; }
+        .online .sync-dot { background:#34d399; }
+        .offline .sync-dot { background:#fbbf24;animation:none; }
+        @keyframes syncPulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(52,211,153,0.4)} 50%{opacity:.5;box-shadow:0 0 0 6px rgba(52,211,153,0)} }
+    </style>
+</head>
+<body>
+    <div class="stars-container" id="starsContainer"></div>
+    <div class="cloud cloud-1"></div><div class="cloud cloud-2"></div>
+    <div class="cloud cloud-3"></div><div class="cloud cloud-4"></div>
+    <div class="deco-cloud deco-cloud-1"><svg viewBox="0 0 200 100"><ellipse cx="100" cy="60" rx="80" ry="35"/><ellipse cx="60" cy="50" rx="50" ry="30"/><ellipse cx="140" cy="45" rx="55" ry="32"/><ellipse cx="90" cy="40" rx="45" ry="28"/></svg></div>
+    <div class="deco-cloud deco-cloud-2"><svg viewBox="0 0 200 100"><ellipse cx="100" cy="60" rx="80" ry="35"/><ellipse cx="60" cy="50" rx="50" ry="30"/><ellipse cx="140" cy="45" rx="55" ry="32"/></svg></div>
+    <div class="deco-cloud deco-cloud-3"><svg viewBox="0 0 200 100"><ellipse cx="100" cy="60" rx="80" ry="35"/><ellipse cx="60" cy="50" rx="50" ry="30"/><ellipse cx="140" cy="45" rx="55" ry="32"/></svg></div>
+
+    <div class="mode-switcher">
+        <button class="mode-btn active" onclick="switchMode('board')" id="btnBoard">📊 Доска</button>
+        <button class="mode-btn" onclick="switchMode('test')" id="btnTest">📝 Тест</button>
+    </div>
+
+    <div class="main-container">
+        <!-- ===== BOARD ===== -->
+        <div id="boardMode">
+            <div class="header">
+                <h1>🎤 Насколько ты оратор?</h1>
+                <p class="subtitle">Отсканируйте QR-код телефоном и узнайте свой уровень ораторского мастерства!</p>
+                <div class="emoji-row">☁️ ✨ 🌙 ☁️</div>
+            </div>
+
+            <div class="card qr-section">
+                <div class="card-title"><span class="icon">📱</span> QR-код для прохождения теста</div>
+                <div class="qr-wrapper"><div id="qrcode"></div></div>
+                <p class="qr-hint">Наведите камеру телефона на <strong>QR-код</strong> чтобы начать тест</p>
+                <div style="margin-top:15px;">
+                    <label style="font-size:.9em;color:rgba(255,255,255,0.5);">URL теста:</label><br>
+                    <input type="text" id="testUrlInput" value="" style="width:100%;max-width:500px;padding:10px 15px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:#fff;font-family:'Nunito',sans-serif;font-size:.9em;margin-top:8px;outline:none;" oninput="updateQR()">
+                </div>
+            </div>
+
+            <div class="card group-results" style="position:relative;">
+                <button class="refresh-btn" onclick="clearResults()">🗑️ Сброс</button>
+                <div class="card-title">
+                    <span class="icon">📊</span> Результаты группы
+                    <span class="sync-badge" id="syncBadge"><span class="sync-dot"></span> <span id="syncText">Загрузка...</span></span>
+                </div>
+                <div id="groupResultsContent"></div>
+            </div>
+        </div>
+
+        <!-- ===== TEST ===== -->
+        <div id="testMode" style="display:none;">
+            <div class="header">
+                <h1>🎤 Тест: Насколько ты оратор?</h1>
+                <p class="subtitle">Ответьте на 15 вопросов и узнайте свой уровень</p>
+            </div>
+            <div id="testIntro" class="card fade-in">
+                <div class="card-title"><span class="icon">🌟</span> Добро пожаловать!</div>
+                <p style="color:rgba(255,255,255,0.7);line-height:1.7;margin-bottom:20px;">Этот тест поможет определить ваш текущий уровень ораторского мастерства. Мы оценим уверенность, структуру речи, работу с аудиторией и другие важные аспекты.</p>
+                <div style="text-align:center;">
+                    <input type="text" class="name-input" id="participantName" placeholder="Ваше имя (необязательно)">
+                    <br><button class="btn btn-primary pulse" onclick="startTest()" style="margin:0 auto;">🚀 Начать тест</button>
+                </div>
+            </div>
+            <div id="testQuestions" style="display:none;">
+                <div class="card">
+                    <div class="progress-bar-container"><div class="progress-bar" id="progressBar"></div></div>
+                    <div class="question-counter" id="questionCounter"></div>
+                    <div class="question-text" id="questionText"></div>
+                    <div class="answers" id="answersContainer"></div>
+                    <div class="nav-buttons">
+                        <button class="btn btn-secondary" id="btnPrev" onclick="prevQuestion()">← Назад</button>
+                        <button class="btn btn-primary" id="btnNext" onclick="nextQuestion()">Далее →</button>
+                    </div>
+                </div>
+            </div>
+            <div id="testResult" style="display:none;">
+                <div class="card result-container slide-up">
+                    <div class="result-emoji" id="resultEmoji"></div>
+                    <div class="result-title" id="resultTitle"></div>
+                    <div class="result-score" id="resultScore"></div>
+                    <div class="result-bar"><div class="result-bar-fill" id="resultBarFill"></div></div>
+                    <div class="result-scale"><span>Новичок</span><span>Профи</span></div>
+                    <div class="result-description" id="resultDescription"></div>
+                    <button class="btn btn-gold" onclick="retakeTest()" style="margin:0 auto;">🔄 Пройти заново</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ===== FIREBASE CONFIG — ВСТАВЬТЕ СВОИ ДАННЫЕ =====
+    // (инструкция ниже в коде)
+    const firebaseConfig = {
+        apiKey: "ВСТАВЬТЕ_СЮДА",
+        authDomain: "ВСТАВЬТЕ_СЮДА",
+        databaseURL: "ВСТАВЬТЕ_СЮДА",
+        projectId: "ВСТАВЬТЕ_СЮДА",
+        storageBucket: "ВСТАВЬТЕ_СЮДА",
+        messagingSenderId: "ВСТАВЬТЕ_СЮДА",
+        appId: "ВСТАВЬТЕ_СЮДА"
+    };
+
+    let db = null;
+    let useFirebase = false;
+    let allResults = [];
+
+    // Пробуем подключить Firebase
+    (function initDB() {
+          apiKey: "AIzaSyAdFt4vrANL-EaPD8TyGbGOtghvQq0HkhM",
+          authDomain: "oratortest.firebaseapp.com",
+          databaseURL: "https://oratortest-default-rtdb.europe-west1.firebasedatabase.app",
+          projectId: "oratortest",
+          storageBucket: "oratortest.firebasestorage.app",
+          messagingSenderId: "57252989243",
+          appId: "1:57252989243:web:86d971bbd6123ebfcd8f1e"
+        }
+    })();
+
+    function updateSyncBadge(connected) {
+        const badge = document.getElementById('syncBadge');
+        const text = document.getElementById('syncText');
+        if (!badge) return;
+        if (connected) { badge.className='sync-badge online'; text.textContent='Облако'; }
+        else { badge.className='sync-badge offline'; text.textContent='Локально'; }
+    }
+
+    // ===== ЗВЁЗДЫ =====
+    (function() {
+        const c = document.getElementById('starsContainer');
+        for (let i=0; i<120; i++) {
+            const s = document.createElement('div'); s.className='star';
+            s.style.left=Math.random()*100+'%'; s.style.top=Math.random()*100+'%';
+            s.style.setProperty('--dur',(2+Math.random()*4)+'s');
+            s.style.animationDelay=Math.random()*3+'s';
+            s.style.width=s.style.height=(1+Math.random()*3)+'px';
+            c.appendChild(s);
+        }
+    })();
+
+    // ===== ВОПРОСЫ =====
+    const questions = [
+        { question:"Как вы чувствуете себя перед выступлением перед большой аудиторией?", answers:[{text:"Сильно волнуюсь, почти паника",score:1},{text:"Немного нервничаю, но справляюсь",score:2},{text:"Чувствую приятное возбуждение",score:3},{text:"Абсолютно спокоен и уверен",score:4}] },
+        { question:"Как часто вы используете зрительный контакт с аудиторией?", answers:[{text:"Стараюсь не смотреть на людей",score:1},{text:"Иногда смотрю, но чаще в заметки",score:2},{text:"Стараюсь охватить взглядом всех",score:3},{text:"Активно использую контакт глаз для управления вниманием",score:4}] },
+        { question:"Как вы структурируете свою речь?", answers:[{text:"Говорю спонтанно, без плана",score:1},{text:"Примерно знаю, о чём говорить",score:2},{text:"Имею чёткое вступление, основную часть и заключение",score:3},{text:"Использую продуманные приёмы: крючки, истории, призывы к действию",score:4}] },
+        { question:"Как вы работаете с голосом во время выступления?", answers:[{text:"Говорю монотонно, одним тоном",score:1},{text:"Иногда меняю громкость",score:2},{text:"Контролирую темп, громкость и интонацию",score:3},{text:"Виртуозно владею паузами, акцентами и модуляцией голоса",score:4}] },
+        { question:"Как вы используете жесты и язык тела?", answers:[{text:"Стою неподвижно или нервно ерзаю",score:1},{text:"Жестикулирую, но неосознанно",score:2},{text:"Использую жесты для подчёркивания мыслей",score:3},{text:"Полностью контролирую язык тела, использую пространство сцены",score:4}] },
+        { question:"Как вы реагируете, если аудитория выглядит скучающей?", answers:[{text:"Паникую и теряю мысль",score:1},{text:"Продолжаю, но чувствую неуверенность",score:2},{text:"Задаю вопрос или меняю тон",score:3},{text:"Использую юмор, историю или интерактив для вовлечения",score:4}] },
+        { question:"Как вы готовитесь к важному выступлению?", answers:[{text:"Не готовлюсь, надеюсь на импровизацию",score:1},{text:"Бегло просматриваю материал",score:2},{text:"Репетирую вслух несколько раз",score:3},{text:"Тщательно прорабатываю структуру, репетирую, записываю себя на видео",score:4}] },
+        { question:"Как вы используете истории (сторителлинг) в выступлениях?", answers:[{text:"Не использую истории",score:1},{text:"Иногда привожу примеры",score:2},{text:"Регулярно рассказываю истории для иллюстрации мыслей",score:3},{text:"Мастерски вплетаю истории в ткань выступления, создавая эмоциональные волны",score:4}] },
+        { question:"Как вы относитесь к вопросам из зала?", answers:[{text:"Боюсь вопросов, избегаю их",score:1},{text:"Отвечаю, но чувствую дискомфорт",score:2},{text:"Отвечаю уверенно, но кратко",score:3},{text:"Приветствую вопросы, использую их для усиления выступления",score:4}] },
+        { question:"Как вы используете юмор в своих выступлениях?", answers:[{text:"Не шучу — это не моё",score:1},{text:"Иногда пытаюсь пошутить, но не всегда получается",score:2},{text:"Уместно использую юмор для разрядки обстановки",score:3},{text:"Юмор — мой мощный инструмент для вовлечения и запоминания",score:4}] },
+        { question:"Как вы работаете с визуальными материалами (слайды, презентации)?", answers:[{text:"Не использую или делаю слайды с текстом",score:1},{text:"Использую базовые слайды с информацией",score:2},{text:"Создаю визуально привлекательные презентации",score:3},{text:"Слайды — дополнение к моей речи, а не замена. Минимум текста, максимум визуала",score:4}] },
+        { question:"Как часто вы выступаете публично?", answers:[{text:"Практически никогда",score:1},{text:"Раз в полгода-год",score:2},{text:"Несколько раз в месяц",score:3},{text:"Регулярно, это часть моей деятельности",score:4}] },
+        { question:"Как вы оцениваете свою способность убеждать слушателей?", answers:[{text:"Мне сложно убедить даже одного человека",score:1},{text:"Иногда получается аргументировать позицию",score:2},{text:"Часто добиваюсь согласия аудитории",score:3},{text:"Мои выступления регулярно меняют мнение людей",score:4}] },
+        { question:"Как вы справляетесь с техническими проблемами во время выступления?", answers:[{text:"Полностью теряюсь и не могу продолжить",score:1},{text:"Нервничаю, но пытаюсь продолжать",score:2},{text:"Сохраняю спокойствие и импровизирую",score:3},{text:"Превращаю проблему в шутку или момент взаимодействия с аудиторией",score:4}] },
+        { question:"Что вы чувствуете после успешного выступления?", answers:[{text:"Радость, что всё закончилось",score:1},{text:"Удовлетворение, но с остатком нервов",score:2},{text:"Гордость и желание выступать чаще",score:3},{text:"Энергию, вдохновение и анализ того, что можно улучшить",score:4}] }
+    ];
+
+    let currentQuestion = 0;
+    let userAnswers = new Array(questions.length).fill(-1);
+    let currentMode = 'board';
+
+    function switchMode(mode) {
+        currentMode = mode;
+        document.getElementById('boardMode').style.display = mode==='board'?'block':'none';
+        document.getElementById('testMode').style.display = mode==='test'?'block':'none';
+        document.getElementById('btnBoard').classList.toggle('active', mode==='board');
+        document.getElementById('btnTest').classList.toggle('active', mode==='test');
+        if (mode==='board') { generateQR(); listenForResults(); }
+    }
+
+    // ===== QR =====
+    function generateQR() {
+        const container = document.getElementById('qrcode'); container.innerHTML='';
+        const url = document.getElementById('testUrlInput').value || window.location.href.split('?')[0] + '?mode=test';
+        try { new QRCode(container, { text:url, width:220, height:220, colorDark:"#1a1a3e", colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.H }); }
+        catch(e) { container.innerHTML='<p style="color:#333;padding:20px;">Ошибка QR. Проверьте интернет.</p>'; }
+    }
+    function updateQR() { generateQR(); }
+
+    // ===== ТЕСТ =====
+    function startTest() { document.getElementById('testIntro').style.display='none'; document.getElementById('testQuestions').style.display='block'; currentQuestion=0; userAnswers.fill(-1); showQuestion(); }
+    function showQuestion() {
+        const q = questions[currentQuestion];
+        document.getElementById('progressBar').style.width = ((currentQuestion+1)/questions.length*100)+'%';
+        document.getElementById('questionCounter').textContent = 'Вопрос '+ (currentQuestion+1) +' из '+ questions.length;
+        document.getElementById('questionText').textContent = q.question;
+        const c = document.getElementById('answersContainer'); c.innerHTML='';
+        const letters=['А','Б','В','Г'];
+        q.answers.forEach((a,i)=>{
+            const btn=document.createElement('button');
+            btn.className='answer-btn'+(userAnswers[currentQuestion]===i?' selected':'');
+            btn.innerHTML='<span class="answer-letter">'+letters[i]+'</span><span>'+a.text+'</span>';
+            btn.onclick=()=>selectAnswer(i); c.appendChild(btn);
+        });
+        document.getElementById('btnPrev').style.visibility = currentQuestion===0?'hidden':'visible';
+        document.getElementById('btnNext').textContent = currentQuestion===questions.length-1?'✨ Узнать результат':'Далее →';
+        document.getElementById('btnNext').className = currentQuestion===questions.length-1?'btn btn-gold':'btn btn-primary';
+    }
+    function selectAnswer(i) { userAnswers[currentQuestion]=i; showQuestion(); }
+    function nextQuestion() {
+        if (userAnswers[currentQuestion]===-1) {
+            document.querySelectorAll('.answer-btn').forEach(b=>{b.style.borderColor='rgba(239,68,68,0.5)'; setTimeout(()=>b.style.borderColor='',1000);}); return;
+        }
+        if (currentQuestion<questions.length-1) { currentQuestion++; showQuestion(); } else { showResult(); }
+    }
+    function prevQuestion() { if(currentQuestion>0){currentQuestion--; showQuestion();} }
+    function showResult() {
+        let total=0; userAnswers.forEach((ans,i)=>{ if(ans>=0) total+=questions[i].answers[ans].score; });
+        const max=questions.length*4, pct=Math.round((total/max)*100);
+        let emoji,title,desc;
+        if(pct<=30){emoji='🌱';title='Начинающий оратор';desc='У вас огромный потенциал для роста! Начните с малого: практикуйтесь перед зеркалом, записывайте себя на видео, читайте книги по ораторскому мастерству.';}
+        else if(pct<=50){emoji='🌿';title='Развивающийся оратор';desc='У вас уже есть базовые навыки! Присоединитесь к клубу ораторов, практикуйтесь регулярно, работайте над уверенностью.';}
+        else if(pct<=70){emoji='🌟';title='Уверенный оратор';desc='Вы владеете многими техниками. Продолжайте оттачивать мастерство и экспериментировать со стилем!';}
+        else if(pct<=90){emoji='🏆';title='Опытный оратор';desc='Профессионал! Ваша речь убедительна, вы мастерски владеете голосом и сторителлингом.';}
+        else{emoji='👑';title='Мастер ораторского искусства!';desc='Вы не просто говорите — вы вдохновляете. Ваш дар — редкое сочетание техники, харизмы и искренности.';}
+
+        document.getElementById('testQuestions').style.display='none';
+        document.getElementById('testResult').style.display='block';
+        document.getElementById('resultEmoji').textContent=emoji;
+        document.getElementById('resultTitle').textContent=title;
+        document.getElementById('resultScore').textContent=pct+'%';
+        document.getElementById('resultDescription').textContent=desc;
+        setTimeout(()=>document.getElementById('resultBarFill').style.width=pct+'%',300);
+
+        saveResult(pct, document.getElementById('participantName').value || 'Аноним');
+        if(pct>60) launchConfetti();
+    }
+    function retakeTest() { document.getElementById('testResult').style.display='none'; document.getElementById('testIntro').style.display='block'; currentQuestion=0; userAnswers.fill(-1); }
+
+    // ===== БАЗА ДАННЫХ (Firebase + localStorage fallback) =====
+    function saveResult(score, name) {
+        const entry = { name, score, time: Date.now() };
+        if (useFirebase) {
+            db.ref('orator_results').push(entry).catch(err=>console.error('Ошибка записи:', err));
+        }
+        allResults.push(entry);
+        renderGroupResults(allResults);
+    }
+
+    function listenForResults() {
+        if (useFirebase) {
+            db.ref('orator_results').on('value', snap => {
+                allResults = [];
+                snap.forEach(child => { allResults.push(child.val()); });
+                renderGroupResults(allResults);
+            }, err => {
+                console.error('Ошибка чтения:', err);
+                updateSyncBadge(false);
+                allResults = getLocalResults();
+                renderGroupResults(allResults);
+            });
+        } else {
+            allResults = getLocalResults();
+            renderGroupResults(allResults);
+        }
+    }
+
+    function getLocalResults() { return JSON.parse(localStorage.getItem('orator_results')||'[]'); }
+    function saveLocalResults() { localStorage.setItem('orator_results', JSON.stringify(allResults)); }
+
+    function clearResults() {
+        if (!confirm('Удалить все результаты группы?')) return;
+        if (useFirebase) { db.ref('orator_results').remove(); }
+        allResults = []; saveLocalResults();
+        renderGroupResults([]);
+    }
+
+    // ===== ОТРИСОВКА РЕЗУЛЬТАТОВ =====
+    function renderGroupResults(results) {
+        const c = document.getElementById('groupResultsContent');
+        if (!results || results.length===0) {
+            c.innerHTML='<div class="no-results"><div class="icon">📭</div><p>Пока никто не прошёл тест.<br>Отсканируйте QR-код, чтобы стать первым!</p></div>';
+            return;
+        }
+        saveLocalResults();
+
+        const scores = results.map(r=>r.score);
+        const avg = Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
+        const mx = Math.max(...scores), mn = Math.min(...scores), total = scores.length;
+
+        const levels = [
+            {l:'🌱 Новичок',min:0,max:30,cls:'level-1',em:'🌱'},
+            {l:'🌿 Развивающийся',min:31,max:50,cls:'level-2',em:'🌿'},
+            {l:'🌟 Уверенный',min:51,max:70,cls:'level-3',em:'🌟'},
+            {l:'🏆 Опытный',min:71,max:90,cls:'level-4',em:'🏆'},
+            {l:'👑 Мастер',min:91,max:100,cls:'level-5',em:'👑'}
+        ];
+        const dist = levels.map(l=>({...l, cnt: scores.filter(s=>s>=l.min&&s<=l.max).length}));
+        const maxCnt = Math.max(...dist.map(d=>d.cnt),1);
+
+        let h='<div class="group-stats">';
+        h+='<div class="stat-box"><div class="stat-value">'+avg+'%</div><div class="stat-label">Средний балл</div></div>';
+        h+='<div class="stat-box"><div class="stat-value">'+total+'</div><div class="stat-label">Участников</div></div>';
+        h+='<div class="stat-box"><div class="stat-value" style="background:linear-gradient(135deg,#34d399,#6ee7b7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">'+mx+'%</div><div class="stat-label">Максимум</div></div>';
+        h+='<div class="stat-box"><div class="stat-value" style="background:linear-gradient(135deg,#f87171,#fca5a5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">'+mn+'%</div><div class="stat-label">Минимум</div></div>';
+        h+='</div>';
+
+        h+='<div style="text-align:center;margin-bottom:10px;"><span style="font-family:\'Comfortaa\',cursive;font-size:1.1em;color:rgba(255,255,255,0.6);">Средний уровень группы:</span></div>';
+        h+='<div style="display:flex;justify-content:center;align-items:center;gap:15px;margin-bottom:30px;">';
+        h+='<span style="font-size:3em;">'+getLevelEmoji(avg)+'</span>';
+        h+='<div><div style="font-family:\'Comfortaa\',cursive;font-size:1.5em;font-weight:700;">'+getLevelTitle(avg)+'</div><div style="color:rgba(255,255,255,0.5);font-size:.9em;">'+avg+' из 100%</div></div>';
+        h+='</div>';
+
+        h+='<div style="text-align:center;margin-bottom:15px;"><span style="font-family:\'Comfortaa\',cursive;font-size:1.1em;color:rgba(255,255,255,0.6);">Распределение по уровням:</span></div>';
+        h+='<div class="distribution-visual">';
+        dist.forEach(d=>{
+            h+='<div class="dist-bar-wrapper">';
+            h+='<div class="dist-bar '+d.cls+'" style="height:'+Math.max((d.cnt/maxCnt)*160,5)+'px;">'+(d.cnt>0?d.cnt:'')+'</div>';
+            h+='<div class="dist-emoji">'+d.em+'</div>';
+            h+='<div class="dist-label">'+d.l.replace(/[^\w\sа-яА-ЯёЁ]/g,'').trim()+'</div>';
+            h+='</div>';
+        });
+        h+='</div>';
+
+        h+='<div class="chart-container">';
+        h+='<div style="text-align:center;margin-bottom:15px;"><span style="font-family:\'Comfortaa\',cursive;font-size:1em;color:rgba(255,255,255,0.5);">Детальная статистика:</span></div>';
+        dist.forEach(d=>{
+            const w = total>0 ? Math.round(d.cnt/total*100) : 0;
+            h+='<div class="chart-bar-row">';
+            h+='<div class="chart-label">'+d.em+' '+d.l.replace(/[^\w\sа-яА-ЯёЁ]/g,'').trim()+'</div>';
+            h+='<div class="chart-bar-bg"><div class="chart-bar-fill '+d.cls+'" style="width:'+w+'%">'+(d.cnt>0?d.cnt+' чел.':'')+'</div></div>';
+            h+='<div class="chart-count">'+w+'%</div>';
+            h+='</div>';
+        });
+        h+='</div>';
+
+        h+='<div style="margin-top:25px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.08);">';
+        h+='<div style="text-align:center;margin-bottom:10px;"><span style="font-family:\'Comfortaa\',cursive;font-size:1em;color:rgba(255,255,255,0.5);">Последние участники:</span></div>';
+        h+='<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">';
+        results.slice(-5).reverse().forEach(r=>{
+            h+='<div style="padding:8px 16px;background:rgba(255,255,255,0.06);border-radius:12px;border:1px solid rgba(255,255,255,0.08);font-size:.85em;">'+r.name+' — <strong style="color:'+getScoreColor(r.score)+'">'+r.score+'%</strong> '+getLevelEmoji(r.score)+'</div>';
+        });
+        h+='</div></div>';
+
+        c.innerHTML = h;
+        setTimeout(()=>{ document.querySelectorAll('.chart-bar-fill,.dist-bar').forEach(el=>{el.style.transition='all 1.5s ease';}); },100);
+    }
+
+    function getLevelEmoji(s){return s<=30?'🌱':s<=50?'🌿':s<=70?'🌟':s<=90?'🏆':'👑';}
+    function getLevelTitle(s){return s<=30?'Новичок':s<=50?'Развивающийся':s<=70?'Уверенный':s<=90?'Опытный':'Мастер';}
+    function getScoreColor(s){return s<=30?'#f87171':s<=50?'#fbbf24':s<=70?'#34d399':s<=90?'#60a5fa':'#a78bfa';}
+
+    function launchConfetti() {
+        const colors=['#7c6ff7','#f472b6','#fbbf24','#34d399','#60a5fa','#fff'];
+        for(let i=0;i<60;i++){
+            setTimeout(()=>{
+                const c=document.createElement('div'); c.className='confetti-piece';
+                c.style.left=Math.random()*100+'vw'; c.style.top='-10px';
+                c.style.width=(5+Math.random()*10)+'px'; c.style.height=(5+Math.random()*10)+'px';
+                c.style.background=colors[Math.floor(Math.random()*colors.length)];
+                c.style.borderRadius=Math.random()>0.5?'50%':'2px';
+                c.style.setProperty('--fall-dur',(2+Math.random()*3)+'s');
+                c.style.setProperty('--rotation',(Math.random()*720-360)+'deg');
+                document.body.appendChild(c); setTimeout(()=>c.remove(),5000);
+            },i*50);
+        }
+    }
+
+    function init() {
+        const p = new URLSearchParams(window.location.search);
+        switchMode(p.get('mode')==='test'?'test':'board');
+    }
+    init();
+    </script>
+</body>
+</html>
